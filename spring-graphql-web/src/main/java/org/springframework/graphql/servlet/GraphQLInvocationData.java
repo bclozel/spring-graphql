@@ -1,9 +1,9 @@
 package org.springframework.graphql.servlet;
 
-import graphql.Assert;
-
 import java.util.Collections;
 import java.util.Map;
+
+import graphql.Assert;
 
 public class GraphQLInvocationData {
 

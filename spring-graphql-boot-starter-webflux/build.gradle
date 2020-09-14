@@ -1,9 +1,8 @@
-description = "GraphQL Java Spring Boot starter Webmvc"
+description = "Starter for building GraphQL Java applications with Spring MVC"
+
 dependencies {
-    implementation "org.springframework.boot:spring-boot-autoconfigure:$springBootVersion"
-    implementation project(':spring-graphql-webflux')
+    implementation project(':spring-graphql-web')
+	implementation "org.springframework.boot:spring-boot-starter-webflux"
 
-    testCompile "org.springframework.boot:spring-boot-starter-test:$springBootVersion"
-    testCompile "org.springframework.boot:spring-boot-starter-webflux:$springBootVersion"
-
+    testCompile "org.springframework.boot:spring-boot-starter-test"
 }

@@ -1,6 +1,10 @@
 package org.springframework.graphql.servlet.components;
 
 
+import java.io.IOException;
+
+import javax.servlet.ServletException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,9 +14,6 @@ import org.springframework.web.servlet.function.RequestPredicates;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerRequest;
 import org.springframework.web.servlet.function.ServerResponse;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
 
 import static org.springframework.web.servlet.function.RouterFunctions.route;
 

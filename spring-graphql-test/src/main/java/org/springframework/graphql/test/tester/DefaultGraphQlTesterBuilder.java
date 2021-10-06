@@ -61,6 +61,12 @@ class DefaultGraphQlTesterBuilder
 	}
 
 	@Override
+	public DefaultGraphQlTesterBuilder queryNameResolver(QueryNameResolver queryNameResolver) {
+		setQueryNameResolver(queryNameResolver);
+		return this;
+	}
+
+	@Override
 	public GraphQlTester build() {
 		RequestStrategy strategy = new GraphQlServiceRequestStrategy(
 				this.service, getErrorFilter(), initJsonPathConfig(), initResponseTimeout());

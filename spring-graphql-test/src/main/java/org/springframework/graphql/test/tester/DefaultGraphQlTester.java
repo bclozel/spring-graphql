@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -49,10 +48,10 @@ class DefaultGraphQlTester implements GraphQlTester {
 
 	private final RequestStrategy requestStrategy;
 
-	private final Function<String, String> queryNameResolver;
+	private final QueryNameResolver queryNameResolver;
 
 
-	DefaultGraphQlTester(RequestStrategy requestStrategy, Function<String, String> queryNameResolver) {
+	DefaultGraphQlTester(RequestStrategy requestStrategy, QueryNameResolver queryNameResolver) {
 		Assert.notNull(requestStrategy, "RequestStrategy is required.");
 		Assert.notNull(queryNameResolver, "'queryNameResolver' is required.");
 		this.requestStrategy = requestStrategy;
@@ -67,7 +66,7 @@ class DefaultGraphQlTester implements GraphQlTester {
 
 	@Override
 	public RequestSpec<?> queryName(String queryName) {
-		return query(this.queryNameResolver.apply(queryName));
+		return query(this.queryNameResolver.resolveQuery(queryName));
 	}
 
 

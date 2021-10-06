@@ -15,12 +15,7 @@
  */
 package org.springframework.graphql.test.tester;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 import com.jayway.jsonpath.Configuration;
@@ -28,12 +23,9 @@ import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
 import graphql.GraphQLError;
 
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
-import org.springframework.util.FileCopyUtils;
 
 /**
  * Base class support for implementations of
@@ -64,7 +56,7 @@ class GraphQlTesterBuilderSupport {
 	@Nullable
 	private Duration responseTimeout;
 
-	private final Function<String, String> queryNameResolver = new QueryNameResolver();
+	private QueryNameResolver queryNameResolver = new DefaultQueryNameResolver();
 
 
 	protected void addErrorFilter(Predicate<GraphQLError> predicate) {
@@ -90,7 +82,12 @@ class GraphQlTesterBuilderSupport {
 		return this.responseTimeout;
 	}
 
-	protected Function<String, String> getQueryNameResolver() {
+	protected void setQueryNameResolver(QueryNameResolver queryNameResolver) {
+		Assert.notNull(queryNameResolver, "'queryNameResolver' is required");
+		this.queryNameResolver = queryNameResolver;
+	}
+
+	protected QueryNameResolver getQueryNameResolver() {
 		return this.queryNameResolver;
 	}
 
@@ -108,39 +105,6 @@ class GraphQlTesterBuilderSupport {
 
 	protected Duration initResponseTimeout() {
 		return (this.responseTimeout != null ? this.responseTimeout : DEFAULT_RESPONSE_DURATION);
-	}
-
-
-	private static class QueryNameResolver implements Function<String, String> {
-
-		private static final ClassPathResource LOCATION = new ClassPathResource("graphql/");
-
-		private static final String[] EXTENSIONS = new String[] {".graphql", ".gql"};
-
-		@Override
-		public String apply(String queryName) {
-			Resource queryResource = getQueryResource(queryName);
-			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-			try {
-				FileCopyUtils.copy(queryResource.getInputStream(), outputStream);
-			}
-			catch (IOException ex) {
-				throw new IllegalArgumentException("Failed to read query from: " + LOCATION.getPath());
-			}
-			return new String(outputStream.toByteArray(), StandardCharsets.UTF_8);
-		}
-
-		private Resource getQueryResource(String queryName) {
-			for (String extension : EXTENSIONS) {
-				Resource resource = LOCATION.createRelative(queryName + extension);
-				if (resource.exists()) {
-					return resource;
-				}
-			}
-			throw new IllegalArgumentException(
-					"Could not find file '" + queryName + "' with extensions " + Arrays.toString(EXTENSIONS) +
-							" under " + LOCATION.getDescription());
-		}
 	}
 
 

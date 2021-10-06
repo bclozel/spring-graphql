@@ -16,6 +16,10 @@
 
 package org.springframework.graphql.boot.test.tester;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
@@ -34,6 +38,9 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.Ordered;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.Resource;
+import org.springframework.graphql.test.tester.DefaultQueryNameResolver;
 import org.springframework.graphql.test.tester.GraphQlTester;
 import org.springframework.graphql.test.tester.WebGraphQlTester;
 import org.springframework.test.context.ContextCustomizer;
@@ -116,6 +123,8 @@ class GraphQlTesterContextCustomizer implements ContextCustomizer {
 
 	public static class GraphQlTesterFactory implements FactoryBean<GraphQlTester>, ApplicationContextAware {
 
+		private static String PREFIX = "spring.graphql.queries.";
+
 		private ApplicationContext applicationContext;
 
 		private GraphQlTester object;
@@ -144,11 +153,18 @@ class GraphQlTesterContextCustomizer implements ContextCustomizer {
 		}
 
 		private WebGraphQlTester createGraphQlTester() {
+			Environment environment = this.applicationContext.getEnvironment();
 			WebTestClient webTestClient = this.applicationContext.getBean(WebTestClient.class);
 			boolean sslEnabled = isSslEnabled(this.applicationContext);
-			String port = this.applicationContext.getEnvironment().getProperty("local.server.port", "8080");
+			String port = environment.getProperty("local.server.port", "8080");
 			WebTestClient mutatedWebClient = webTestClient.mutate().baseUrl(getBaseUrl(sslEnabled, port)).build();
-			return WebGraphQlTester.create(mutatedWebClient);
+			String[] locations = environment.getProperty(PREFIX + "locations", String[].class, new String[] { "classpath:graphql/"});
+			String[] fileExtensions = environment.getProperty(PREFIX + "file-extensions", String[].class, new String[] { ".graphql", ".gql"});
+			List<Resource> resolvedLocations = Arrays.stream(locations)
+					.map(location -> this.applicationContext.getResource(location)).collect(Collectors.toList());
+			return WebGraphQlTester.builder(mutatedWebClient)
+					.queryNameResolver(new DefaultQueryNameResolver(resolvedLocations, fileExtensions))
+					.build();
 		}
 
 		private String getBaseUrl(boolean sslEnabled, String port) {

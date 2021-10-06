@@ -118,6 +118,13 @@ public interface GraphQlTester {
 		T responseTimeout(Duration timeout);
 
 		/**
+		 * {@link QueryNameResolver} to use for resolving queries.
+		 * <p>Use {@link DefaultQueryNameResolver#DefaultQueryNameResolver()} by default.
+		 * @param queryNameResolver the query name resolver to use
+		 */
+		T queryNameResolver(QueryNameResolver queryNameResolver);
+
+		/**
 		 * Build the {@code GraphQlTester}.
 		 * @return the created instance
 		 */

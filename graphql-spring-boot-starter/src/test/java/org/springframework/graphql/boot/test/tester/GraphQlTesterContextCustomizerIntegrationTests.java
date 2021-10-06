@@ -44,7 +44,7 @@ import org.springframework.test.annotation.DirtiesContext;
  * @author Brian Clozel
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = "spring.main.web-application-type=reactive")
+		properties = {"spring.main.web-application-type=reactive", "spring.graphql.queries.locations=classpath:queries/"})
 @DirtiesContext
 class GraphQlTesterContextCustomizerIntegrationTests {
 
@@ -52,8 +52,13 @@ class GraphQlTesterContextCustomizerIntegrationTests {
 	GraphQlTester graphQlTester;
 
 	@Test
-	void test() {
+	void shouldExecuteQuery() {
 		this.graphQlTester.query("{}").executeAndVerify();
+	}
+
+	@Test
+	void shouldExecuteNamedQuery() {
+		this.graphQlTester.queryName("sample").executeAndVerify();
 	}
 
 	@Configuration(proxyBeanMethods = false)

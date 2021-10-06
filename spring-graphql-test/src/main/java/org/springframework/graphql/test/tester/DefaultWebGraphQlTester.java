@@ -18,7 +18,6 @@ package org.springframework.graphql.test.tester;
 
 import java.net.URI;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import reactor.core.publisher.Flux;
 
@@ -40,12 +39,12 @@ class DefaultWebGraphQlTester implements WebGraphQlTester {
 	@Nullable
 	private final HttpHeaders defaultHeaders;
 
-	private final Function<String, String> queryNameResolver;
+	private final QueryNameResolver queryNameResolver;
 
 
 	DefaultWebGraphQlTester(
 			WebRequestStrategy requestStrategy, @Nullable HttpHeaders defaultHeaders,
-			Function<String, String> queryNameResolver) {
+			QueryNameResolver queryNameResolver) {
 
 		Assert.notNull(requestStrategy, "WebRequestStrategy is required.");
 		this.requestStrategy = requestStrategy;
@@ -61,7 +60,7 @@ class DefaultWebGraphQlTester implements WebGraphQlTester {
 
 	@Override
 	public WebRequestSpec queryName(String queryName) {
-		return query(this.queryNameResolver.apply(queryName));
+		return query(this.queryNameResolver.resolveQuery(queryName));
 	}
 
 

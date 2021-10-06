@@ -79,6 +79,12 @@ final class DefaultWebGraphQlTesterBuilder
 	}
 
 	@Override
+	public DefaultWebGraphQlTesterBuilder queryNameResolver(QueryNameResolver queryNameResolver) {
+		setQueryNameResolver(queryNameResolver);
+		return this;
+	}
+
+	@Override
 	public DefaultWebGraphQlTesterBuilder defaultHttpHeader(String headerName, String... headerValues) {
 		this.headers = (this.headers != null ? this.headers : new HttpHeaders());
 		for (String headerValue : headerValues) {

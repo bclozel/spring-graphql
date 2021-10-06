@@ -35,6 +35,8 @@ public class GraphQlProperties {
 	 */
 	private String path = "/graphql";
 
+	private final Queries queries = new Queries();
+
 	private final Schema schema = new Schema();
 
 	private final GraphiQL graphiql = new GraphiQL();
@@ -59,6 +61,36 @@ public class GraphQlProperties {
 
 	public Websocket getWebsocket() {
 		return this.websocket;
+	}
+
+
+	public static class Queries {
+
+		/**
+		 * Locations of GraphQL queries files.
+		 */
+		private String[] locations = new String[] { "classpath:graphql/"};
+
+		/**
+		 * File extensions for GraphQL queries files.
+		 */
+		private String[] fileExtensions = new String[] { ".graphql", ".gql"};
+
+		public String[] getLocations() {
+			return this.locations;
+		}
+
+		public void setLocations(String[] locations) {
+			this.locations = locations;
+		}
+
+		public String[] getFileExtensions() {
+			return this.fileExtensions;
+		}
+
+		public void setFileExtensions(String[] fileExtensions) {
+			this.fileExtensions = fileExtensions;
+		}
 	}
 
 	public static class Schema {

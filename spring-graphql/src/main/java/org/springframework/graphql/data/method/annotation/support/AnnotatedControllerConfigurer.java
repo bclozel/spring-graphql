@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.validation.Validator;
+
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import graphql.schema.FieldCoordinates;
@@ -58,6 +60,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 /**
  * {@link RuntimeWiringConfigurer} that detects {@link SchemaMapping @SchemaMapping}
@@ -65,6 +68,7 @@ import org.springframework.util.StringUtils;
  * registers them as {@link DataFetcher}s.
  *
  * @author Rossen Stoyanchev
+ * @author Brian Clozel
  * @since 1.0.0
  */
 public class AnnotatedControllerConfigurer
@@ -100,6 +104,9 @@ public class AnnotatedControllerConfigurer
 	private HandlerMethodArgumentResolverComposite argumentResolvers;
 
 	@Nullable
+	private HandlerMethodInputValidator validator;
+
+	@Nullable
 	private ConversionService conversionService;
 
 
@@ -108,8 +115,23 @@ public class AnnotatedControllerConfigurer
 		this.applicationContext = applicationContext;
 	}
 
+	/**
+	 * Configure the {@link ConversionService} used for binding handler arguments.
+	 */
 	public void setConversionService(ConversionService conversionService) {
 		this.conversionService = conversionService;
+	}
+
+	/**
+	 * Configure a {@code Validator} for validating handler arguments.
+	 * Must be an instance of {@code javax.validation.Validator}.
+	 * @see javax.validation.Validator
+	 * @see LocalValidatorFactoryBean
+	 */
+	public void setValidator(Object validator) {
+		Assert.notNull(validator, "validator should not be null");
+		Assert.isInstanceOf(Validator.class, validator,"validator should be an instance of javax.validation.Validator");
+		this.validator = new HandlerMethodInputValidator((Validator) validator);
 	}
 
 	protected final ApplicationContext obtainApplicationContext() {
@@ -148,7 +170,7 @@ public class AnnotatedControllerConfigurer
 		findHandlerMethods().forEach((info) -> {
 			DataFetcher<?> dataFetcher;
 			if (!info.isBatchMapping()) {
-				dataFetcher = new SchemaMappingDataFetcher(info, this.argumentResolvers);
+				dataFetcher = new SchemaMappingDataFetcher(info, this.argumentResolvers, this.validator);
 			}
 			else {
 				String dataLoaderKey = registerBatchLoader(info);
@@ -372,11 +394,16 @@ public class AnnotatedControllerConfigurer
 
 		private final HandlerMethodArgumentResolverComposite argumentResolvers;
 
+		@Nullable
+		private final HandlerMethodInputValidator validator;
+
 		private final boolean subscription;
 
-		public SchemaMappingDataFetcher(MappingInfo info, HandlerMethodArgumentResolverComposite resolvers) {
+		public SchemaMappingDataFetcher(MappingInfo info, HandlerMethodArgumentResolverComposite resolvers,
+				@Nullable HandlerMethodInputValidator validator) {
 			this.info = info;
 			this.argumentResolvers = resolvers;
+			this.validator = validator;
 			this.subscription = this.info.getCoordinates().getTypeName().equalsIgnoreCase("Subscription");
 		}
 
@@ -398,7 +425,7 @@ public class AnnotatedControllerConfigurer
 		@Override
 		@SuppressWarnings("ConstantConditions")
 		public Object get(DataFetchingEnvironment environment) throws Exception {
-			return new DataFetcherHandlerMethod(getHandlerMethod(), this.argumentResolvers, this.subscription).invoke(environment);
+			return new DataFetcherHandlerMethod(getHandlerMethod(), this.argumentResolvers, this.validator, this.subscription).invoke(environment);
 		}
 	}
 

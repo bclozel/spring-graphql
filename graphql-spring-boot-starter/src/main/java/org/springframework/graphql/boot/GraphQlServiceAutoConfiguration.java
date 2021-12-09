@@ -16,10 +16,16 @@
 
 package org.springframework.graphql.boot;
 
+import javax.validation.Validator;
+import javax.validation.executable.ExecutableValidator;
+
 import graphql.GraphQL;
 
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +37,7 @@ import org.springframework.graphql.execution.BatchLoaderRegistry;
 import org.springframework.graphql.execution.DefaultBatchLoaderRegistry;
 import org.springframework.graphql.execution.ExecutionGraphQlService;
 import org.springframework.graphql.execution.GraphQlSource;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 /**
  * {@link EnableAutoConfiguration Auto-configuration} for creating a
@@ -66,6 +73,34 @@ public class GraphQlServiceAutoConfiguration {
 		AnnotatedControllerConfigurer annotatedControllerConfigurer = new AnnotatedControllerConfigurer();
 		annotatedControllerConfigurer.setConversionService(new DefaultFormattingConversionService());
 		return annotatedControllerConfigurer;
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnClass(ExecutableValidator.class)
+	@ConditionalOnBean(LocalValidatorFactoryBean.class)
+	static class ValidationConfiguration {
+
+		@Bean
+		ControllerConfigurerPostProcessor controllerConfigurerPostProcessor(LocalValidatorFactoryBean validatorFactory) {
+			return new ControllerConfigurerPostProcessor(validatorFactory);
+		}
+	}
+
+	static class ControllerConfigurerPostProcessor implements BeanPostProcessor {
+
+		private final Validator validator;
+
+		public ControllerConfigurerPostProcessor(Validator validator) {
+			this.validator = validator;
+		}
+
+		@Override
+		public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+			if (bean instanceof AnnotatedControllerConfigurer) {
+				((AnnotatedControllerConfigurer) bean).setValidator(this.validator);
+			}
+			return bean;
+		}
 	}
 
 }

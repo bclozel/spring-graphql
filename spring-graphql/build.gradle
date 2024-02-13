@@ -37,6 +37,7 @@ dependencies {
 	testImplementation 'org.junit.jupiter:junit-jupiter'
 	testImplementation 'org.assertj:assertj-core'
 	testImplementation 'org.mockito:mockito-core'
+	testImplementation 'org.awaitility:awaitility'
 	testImplementation 'io.projectreactor:reactor-test'
 	testImplementation 'org.springframework:spring-core-test'
 	testImplementation 'org.springframework:spring-messaging'

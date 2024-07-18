@@ -16,10 +16,12 @@
 
 package org.springframework.graphql.data.pagination;
 
+import java.lang.reflect.AnnotatedElement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
 import graphql.TrivialDataFetcher;
@@ -49,6 +51,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import reactor.core.publisher.Mono;
 
+import org.springframework.core.ResolvableType;
+import org.springframework.graphql.execution.SelfDescribingDataFetcher;
 import org.springframework.graphql.execution.TypeVisitorHelper;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
@@ -102,7 +106,12 @@ public final class ConnectionFieldTypeVisitor extends GraphQLTypeVisitorStub {
 				}
 			}
 			else {
-				dataFetcher = new ConnectionDataFetcher(dataFetcher, this.adapter);
+				if (dataFetcher instanceof SelfDescribingDataFetcher<?> selfDescribingDataFetcher) {
+					dataFetcher = new SelfDescribingConnectionDataFetcher(selfDescribingDataFetcher, this.adapter);
+				}
+				else {
+					dataFetcher = new ConnectionDataFetcher(dataFetcher, this.adapter);
+				}
 				codeRegistry.dataFetcher(fieldCoordinates, dataFetcher);
 			}
 		}
@@ -182,18 +191,25 @@ public final class ConnectionFieldTypeVisitor extends GraphQLTypeVisitorStub {
 	}
 
 
+	// TODO self describing
+
 	/**
 	 * {@code DataFetcher} decorator that adapts return values with an adapter.
 	 */
-	private record ConnectionDataFetcher(DataFetcher<?> delegate, ConnectionAdapter adapter) implements DataFetcher<Object> {
+	private class ConnectionDataFetcher implements DataFetcher<Object> {
 
 		private static final Connection<?> EMPTY_CONNECTION =
 				new DefaultConnection<>(Collections.emptyList(), new DefaultPageInfo(null, null, false, false));
 
+		protected final DataFetcher<?> delegate;
 
-		private ConnectionDataFetcher {
+		protected final ConnectionAdapter adapter;
+
+		private ConnectionDataFetcher(DataFetcher<?> delegate, ConnectionAdapter adapter) {
 			Assert.notNull(delegate, "DataFetcher delegate is required");
 			Assert.notNull(adapter, "ConnectionAdapter is required");
+			this.delegate = delegate;
+			this.adapter = adapter;
 		}
 
 
@@ -258,6 +274,37 @@ public final class ConnectionFieldTypeVisitor extends GraphQLTypeVisitorStub {
 					this.adapter.hasPrevious(container), this.adapter.hasNext(container));
 
 			return new DefaultConnection<>(edges, pageInfo);
+		}
+
+	}
+
+	private class SelfDescribingConnectionDataFetcher extends ConnectionDataFetcher implements SelfDescribingDataFetcher<Object> {
+
+		private final SelfDescribingDataFetcher<?> selfDescribingDelegate;
+
+		public SelfDescribingConnectionDataFetcher(SelfDescribingDataFetcher<?> delegate, ConnectionAdapter adapter) {
+			super(delegate, adapter);
+			this.selfDescribingDelegate = delegate;
+		}
+
+		@Override
+		public String getDescription() {
+			return this.selfDescribingDelegate.getDescription();
+		}
+
+		@Override
+		public AnnotatedElement getAnnotatedElement() {
+			return this.selfDescribingDelegate.getAnnotatedElement();
+		}
+
+		@Override
+		public ResolvableType getReturnType() {
+			return this.selfDescribingDelegate.getReturnType();
+		}
+
+		@Override
+		public Map<String, ResolvableType> getArguments() {
+			return this.selfDescribingDelegate.getArguments();
 		}
 
 	}

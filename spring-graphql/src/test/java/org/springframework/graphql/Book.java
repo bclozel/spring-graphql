@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.graphql;
 
+import java.util.List;
+
 public class Book {
 
 	Long id;
@@ -26,21 +28,29 @@ public class Book {
 
 	Author author;
 
+	List<Long> genreIds;
+
+	Store store;
+
 	public Book() {
 	}
 
-	public Book(Long id, String name, Long authorId) {
+	public Book(Long id, String name, Long authorId, List<Long> genreIds, Store store) {
 		this.id = id;
 		this.name = name;
 		this.authorId = authorId;
 		this.author = null;
+		this.genreIds = genreIds;
+		this.store = store;
 	}
 
-	public Book(Long id, String name, Author author) {
+	public Book(Long id, String name, Author author, List<Genre> genres, Store store) {
 		this.id = id;
 		this.name = name;
 		this.authorId = author.getId();
 		this.author = author;
+		this.genreIds = genres.stream().map(Genre::id).toList();
+		this.store = store;
 	}
 
 	public Long getId() {
@@ -71,4 +81,11 @@ public class Book {
 		this.author = author;
 	}
 
+	public List<Long> getGenreIds() {
+		return this.genreIds;
+	}
+
+	public Store getStore() {
+		return this.store;
+	}
 }

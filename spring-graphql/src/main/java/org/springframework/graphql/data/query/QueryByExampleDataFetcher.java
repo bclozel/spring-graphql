@@ -16,6 +16,7 @@
 
 package org.springframework.graphql.data.query;
 
+import java.lang.reflect.AnnotatedElement;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -121,6 +122,15 @@ public abstract class QueryByExampleDataFetcher<T> {
 	 */
 	public String getDescription() {
 		return "QueryByExampleDataFetcher<" + this.domainType.getType().getName() + ">";
+	}
+
+	/**
+	 * Provides shared implementation of
+	 * {@link SelfDescribingDataFetcher#getAnnotatedElement()} for all subclasses.
+	 * @since 1.4.0
+	 */
+	public AnnotatedElement getAnnotatedElement() {
+		return this.domainType.getType();
 	}
 
 	/**

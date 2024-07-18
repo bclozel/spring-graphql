@@ -16,6 +16,7 @@
 
 package org.springframework.graphql.execution;
 
+import java.lang.reflect.AnnotatedElement;
 import java.util.Collections;
 import java.util.Map;
 
@@ -41,6 +42,12 @@ public interface SelfDescribingDataFetcher<T> extends DataFetcher<T> {
 	 * or other.
 	 */
 	String getDescription();
+
+	/**
+	 * The annotated element supporting the data fetcher.
+	 * @see org.springframework.core.annotation.AnnotatedElementUtils
+	 */
+	AnnotatedElement getAnnotatedElement();
 
 	/**
 	 * The return type of this {@link DataFetcher}.

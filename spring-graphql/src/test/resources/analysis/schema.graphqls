@@ -1,0 +1,42 @@
+type Query {
+    bookById(id: ID): Book
+    booksById(ids: [ID]): [Book]
+    books(first:Int, after:String): BookConnection
+}
+
+type Book {
+    id: ID
+    name: String
+    author: Author
+    genres: [Genre!]
+    store: Store
+}
+
+type Author {
+    id: ID
+    firstName: String
+    lastName: String
+}
+
+type Genre {
+    id: ID
+    name: String
+}
+
+union Store = OnlineStore | BookStore
+
+type OnlineStore {
+    name: String
+    url: String
+}
+
+type BookStore {
+    name: String
+    address: Address
+}
+
+type Address {
+    streetAddress: String
+    zipCode: String
+    country: String
+}

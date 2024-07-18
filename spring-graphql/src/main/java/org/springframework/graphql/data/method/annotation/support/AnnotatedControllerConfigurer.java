@@ -17,6 +17,7 @@
 package org.springframework.graphql.data.method.annotation.support;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -483,6 +484,11 @@ public class AnnotatedControllerConfigurer
 		}
 
 		@Override
+		public AnnotatedElement getAnnotatedElement() {
+			return this.mappingInfo.getHandlerMethod().getMethod();
+		}
+
+		@Override
 		public ResolvableType getReturnType() {
 			return ResolvableType.forMethodReturnType(this.mappingInfo.getHandlerMethod().getMethod());
 		}
@@ -592,6 +598,11 @@ public class AnnotatedControllerConfigurer
 		@Override
 		public String getDescription() {
 			return "@BatchMapping " + this.mappingInfo.getHandlerMethod().getShortLogMessage();
+		}
+
+		@Override
+		public AnnotatedElement getAnnotatedElement() {
+			return this.mappingInfo.getHandlerMethod().getMethod();
 		}
 
 		@Override

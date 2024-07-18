@@ -227,7 +227,7 @@ public class EntityMappingInvocationTests {
 				case -97 -> throw new IllegalArgumentException("handled");
 				case -98 -> throw new IllegalStateException("not handled");
 				case -99 -> null;
-				default -> new Book((long) id, null, (Long) null);
+				default -> new Book((long) id, null, (Long) null, List.of(), null);
 			};
 		}
 
@@ -310,7 +310,7 @@ public class EntityMappingInvocationTests {
 					Map.of("__typename", "Book", "id", "42"),
 					Map.of("__typename", "Book", "id", "53"));
 
-			return idList.stream().map(id -> new Book((long) id, null, (Long) null)).toList();
+			return idList.stream().map(id -> new Book((long) id, null, (Long) null, List.of(), null)).toList();
 		}
 
 		public List<Author> author(List<Book> books) {

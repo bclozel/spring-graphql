@@ -66,7 +66,7 @@ public class BatchLoadingTests {
 					Map<String, Object> criteria = env.getArgument("criteria");
 					String authorName = (String) criteria.get("author");
 					return BookSource.findBooksByAuthor(authorName).stream()
-							.map(book -> new Book(book.getId(), book.getName(), book.getAuthorId()))
+							.map(book -> new Book(book.getId(), book.getName(), book.getAuthorId(), book.getGenreIds(), book.getStore()))
 							.collect(Collectors.toList());
 				})
 				.dataFetcher("Book", "author", env -> {

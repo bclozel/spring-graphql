@@ -16,7 +16,9 @@
 
 package org.springframework.graphql.execution;
 
+import java.lang.reflect.AnnotatedElement;
 import java.util.List;
+import java.util.Map;
 
 import graphql.ExecutionInput;
 import graphql.GraphQLContext;
@@ -38,6 +40,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.springframework.core.ResolvableType;
 import org.springframework.util.Assert;
 
 /**
@@ -51,62 +54,9 @@ import org.springframework.util.Assert;
  * </ul>
  *
  * @author Rossen Stoyanchev
+ * @author Brian Clozel
  */
-final class ContextDataFetcherDecorator implements DataFetcher<Object> {
-
-	private final DataFetcher<?> delegate;
-
-	private final boolean subscription;
-
-	private final SubscriptionExceptionResolver subscriptionExceptionResolver;
-
-
-	private ContextDataFetcherDecorator(
-			DataFetcher<?> delegate, boolean subscription,
-			SubscriptionExceptionResolver subscriptionExceptionResolver) {
-
-		Assert.notNull(delegate, "'delegate' DataFetcher is required");
-		Assert.notNull(subscriptionExceptionResolver, "'subscriptionExceptionResolver' is required");
-		this.delegate = delegate;
-		this.subscription = subscription;
-		this.subscriptionExceptionResolver = subscriptionExceptionResolver;
-	}
-
-
-	@SuppressWarnings("ReactiveStreamsUnusedPublisher")
-	@Override
-	public Object get(DataFetchingEnvironment env) throws Exception {
-
-		GraphQLContext graphQlContext = env.getGraphQlContext();
-		ContextSnapshotFactory snapshotFactory = ContextSnapshotFactoryHelper.getInstance(graphQlContext);
-
-		ContextSnapshot snapshot = (env.getLocalContext() instanceof GraphQLContext localContext) ?
-				snapshotFactory.captureFrom(graphQlContext, localContext) :
-				snapshotFactory.captureFrom(graphQlContext);
-
-		Object value = snapshot.wrap(() -> this.delegate.get(env)).call();
-
-		if (this.subscription) {
-			return ReactiveAdapterRegistryHelper.toSubscriptionFlux(value)
-					.onErrorResume((exception) -> {
-						// Already handled, e.g. controller methods?
-						if (exception instanceof SubscriptionPublisherException) {
-							return Mono.error(exception);
-						}
-						return this.subscriptionExceptionResolver.resolveException(exception)
-								.flatMap((errors) -> Mono.error(new SubscriptionPublisherException(errors, exception)));
-					})
-					.contextWrite(snapshot::updateContext);
-		}
-
-		value = ReactiveAdapterRegistryHelper.toMonoIfReactive(value);
-
-		if (value instanceof Mono<?> mono) {
-			value = mono.contextWrite(snapshot::updateContext).toFuture();
-		}
-
-		return value;
-	}
+final class ContextDataFetcherDecorator {
 
 
 	/**
@@ -142,7 +92,12 @@ final class ContextDataFetcherDecorator implements DataFetcher<Object> {
 
 			if (applyDecorator(dataFetcher)) {
 				boolean handlesSubscription = visitorHelper.isSubscriptionType(parent);
-				dataFetcher = new ContextDataFetcherDecorator(dataFetcher, handlesSubscription, this.exceptionResolver);
+				if (dataFetcher instanceof SelfDescribingDataFetcher<?> selfDescribingDataFetcher) {
+					dataFetcher = new SelfDescribingContextDataFetcher(selfDescribingDataFetcher, handlesSubscription, this.exceptionResolver);
+				}
+				else {
+					dataFetcher = new ContextDataFetcher(dataFetcher, handlesSubscription, this.exceptionResolver);
+				}
 				codeRegistry.dataFetcher(fieldCoordinates, dataFetcher);
 			}
 
@@ -160,6 +115,94 @@ final class ContextDataFetcherDecorator implements DataFetcher<Object> {
 						packageName.startsWith("graphql.validation"));
 			}
 			return true;
+		}
+	}
+
+	private static class ContextDataFetcher implements DataFetcher<Object> {
+
+		final DataFetcher<?> delegate;
+
+		final boolean subscription;
+
+		final SubscriptionExceptionResolver subscriptionExceptionResolver;
+
+
+		ContextDataFetcher(
+				DataFetcher<?> delegate, boolean subscription,
+				SubscriptionExceptionResolver subscriptionExceptionResolver) {
+
+			Assert.notNull(delegate, "'delegate' DataFetcher is required");
+			Assert.notNull(subscriptionExceptionResolver, "'subscriptionExceptionResolver' is required");
+			this.delegate = delegate;
+			this.subscription = subscription;
+			this.subscriptionExceptionResolver = subscriptionExceptionResolver;
+		}
+
+
+		@SuppressWarnings("ReactiveStreamsUnusedPublisher")
+		@Override
+		public Object get(DataFetchingEnvironment env) throws Exception {
+
+			GraphQLContext graphQlContext = env.getGraphQlContext();
+			ContextSnapshotFactory snapshotFactory = ContextSnapshotFactoryHelper.getInstance(graphQlContext);
+
+			ContextSnapshot snapshot = (env.getLocalContext() instanceof GraphQLContext localContext) ?
+					snapshotFactory.captureFrom(graphQlContext, localContext) :
+					snapshotFactory.captureFrom(graphQlContext);
+
+			Object value = snapshot.wrap(() -> this.delegate.get(env)).call();
+
+			if (this.subscription) {
+				return ReactiveAdapterRegistryHelper.toSubscriptionFlux(value)
+						.onErrorResume((exception) -> {
+							// Already handled, e.g. controller methods?
+							if (exception instanceof SubscriptionPublisherException) {
+								return Mono.error(exception);
+							}
+							return this.subscriptionExceptionResolver.resolveException(exception)
+									.flatMap((errors) -> Mono.error(new SubscriptionPublisherException(errors, exception)));
+						})
+						.contextWrite(snapshot::updateContext);
+			}
+
+			value = ReactiveAdapterRegistryHelper.toMonoIfReactive(value);
+
+			if (value instanceof Mono<?> mono) {
+				value = mono.contextWrite(snapshot::updateContext).toFuture();
+			}
+
+			return value;
+		}
+	}
+
+	private static class SelfDescribingContextDataFetcher extends ContextDataFetcher implements SelfDescribingDataFetcher<Object> {
+
+		final SelfDescribingDataFetcher<?> selfDescribingDelegate;
+
+		SelfDescribingContextDataFetcher(SelfDescribingDataFetcher<?> delegate, boolean subscription,
+										 SubscriptionExceptionResolver subscriptionExceptionResolver) {
+			super(delegate, subscription, subscriptionExceptionResolver);
+			this.selfDescribingDelegate = delegate;
+		}
+
+		@Override
+		public String getDescription() {
+			return this.selfDescribingDelegate.getDescription();
+		}
+
+		@Override
+		public AnnotatedElement getAnnotatedElement() {
+			return this.selfDescribingDelegate.getAnnotatedElement();
+		}
+
+		@Override
+		public ResolvableType getReturnType() {
+			return this.selfDescribingDelegate.getReturnType();
+		}
+
+		@Override
+		public Map<String, ResolvableType> getArguments() {
+			return this.selfDescribingDelegate.getArguments();
 		}
 	}
 

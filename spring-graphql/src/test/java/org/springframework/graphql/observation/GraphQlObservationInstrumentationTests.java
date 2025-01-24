@@ -34,10 +34,12 @@ import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import io.micrometer.observation.tck.TestObservationRegistry;
 import io.micrometer.observation.tck.TestObservationRegistryAssert;
+import org.dataloader.DataLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.graphql.Author;
@@ -48,7 +50,9 @@ import org.springframework.graphql.ExecutionGraphQlResponse;
 import org.springframework.graphql.GraphQlSetup;
 import org.springframework.graphql.ResponseHelper;
 import org.springframework.graphql.TestExecutionRequest;
+import org.springframework.graphql.execution.BatchLoaderRegistry;
 import org.springframework.graphql.execution.DataFetcherExceptionResolver;
+import org.springframework.graphql.execution.DefaultBatchLoaderRegistry;
 import org.springframework.graphql.execution.ErrorType;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -355,6 +359,53 @@ class GraphQlObservationInstrumentationTests {
 		TestObservationRegistryAssert.assertThat(this.observationRegistry).hasObservationWithNameEqualTo("graphql.request")
 				.that().hasLowCardinalityKeyValue("graphql.outcome", "REQUEST_ERROR")
 				.hasHighCardinalityKeyValueWithKey("graphql.execution.id");
+	}
+
+	@Test
+	void shouldRecordBatchLoadingAsSingleObservation() {
+		String document = """
+				{
+					booksById(id: [1,2,3,4,5]) {
+						name
+						author {
+							firstName
+						}
+					}
+				}
+				""";
+		BatchLoaderRegistry registry = new DefaultBatchLoaderRegistry();
+		registry.forTypePair(Long.class, Author.class)
+				.registerBatchLoader((ids, env) -> Flux.fromIterable(ids).map(BookSource::getAuthor));
+
+		Mono<ExecutionGraphQlResponse> responseMono = graphQlSetup
+				.queryFetcher("booksById", (environment) -> {
+					List<String> id = environment.getArgument("id");
+					return Flux.fromIterable(id).map(Long::parseLong).map(BookSource::getBookWithoutAuthor).collectList();
+				})
+				.dataFetcher("Book", "author", env -> {
+					Book book = env.getSource();
+					DataLoader<Long, Author> dataLoader = env.getDataLoader(Author.class.getName());
+					return dataLoader.load(book.getAuthorId());
+				})
+				.dataLoaders(registry)
+				.toGraphQlService()
+				.execute(document);
+		ResponseHelper response = ResponseHelper.forResponse(responseMono);
+
+		List<Book> booksById = response.toList("booksById", Book.class);
+		assertThat(booksById).hasSize(5);
+
+		TestObservationRegistryAssert.assertThat(this.observationRegistry).hasObservationWithNameEqualTo("graphql.request")
+				.that().hasLowCardinalityKeyValue("graphql.outcome", "SUCCESS")
+				.hasHighCardinalityKeyValueWithKey("graphql.execution.id");
+
+		TestObservationRegistryAssert.assertThat(this.observationRegistry)
+				.hasNumberOfObservationsWithNameEqualTo("graphql.datafetcher", 1)
+				.hasObservationWithNameEqualTo("graphql.datafetcher")
+				.that()
+				.hasLowCardinalityKeyValue("graphql.outcome", "SUCCESS")
+				.hasLowCardinalityKeyValue("graphql.field.name", "bookById")
+				.hasHighCardinalityKeyValue("graphql.field.path", "/bookById");
 	}
 
 	static class EventListeningObservationHandler implements ObservationHandler<ExecutionRequestObservationContext> {

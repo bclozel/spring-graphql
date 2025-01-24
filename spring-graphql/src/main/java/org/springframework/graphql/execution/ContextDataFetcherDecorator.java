@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,10 +34,12 @@ import graphql.util.TraversalControl;
 import graphql.util.TraverserContext;
 import io.micrometer.context.ContextSnapshot;
 import io.micrometer.context.ContextSnapshotFactory;
+import java.util.Map;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.springframework.core.ResolvableType;
 import org.springframework.util.Assert;
 
 /**
@@ -52,7 +54,7 @@ import org.springframework.util.Assert;
  *
  * @author Rossen Stoyanchev
  */
-final class ContextDataFetcherDecorator implements DataFetcher<Object> {
+class ContextDataFetcherDecorator implements DataFetcher<Object> {
 
 	private final DataFetcher<?> delegate;
 
@@ -70,6 +72,17 @@ final class ContextDataFetcherDecorator implements DataFetcher<Object> {
 		this.delegate = delegate;
 		this.subscription = subscription;
 		this.subscriptionExceptionResolver = subscriptionExceptionResolver;
+	}
+
+	private static ContextDataFetcherDecorator decorate(
+			DataFetcher<?> delegate, boolean handlesSubscription,
+			SubscriptionExceptionResolver subscriptionExceptionResolver) {
+		if (delegate instanceof SelfDescribingDataFetcher<?> selfDescribingDataFetcher) {
+			return new SelfDescribingDecorator(selfDescribingDataFetcher, handlesSubscription, subscriptionExceptionResolver);
+		}
+		else {
+			return new ContextDataFetcherDecorator(delegate, handlesSubscription, subscriptionExceptionResolver);
+		}
 	}
 
 
@@ -142,7 +155,7 @@ final class ContextDataFetcherDecorator implements DataFetcher<Object> {
 
 			if (applyDecorator(dataFetcher)) {
 				boolean handlesSubscription = visitorHelper.isSubscriptionType(parent);
-				dataFetcher = new ContextDataFetcherDecorator(dataFetcher, handlesSubscription, this.exceptionResolver);
+				dataFetcher = ContextDataFetcherDecorator.decorate(dataFetcher, handlesSubscription, this.exceptionResolver);
 				codeRegistry.dataFetcher(fieldCoordinates, dataFetcher);
 			}
 
@@ -160,6 +173,38 @@ final class ContextDataFetcherDecorator implements DataFetcher<Object> {
 						packageName.startsWith("graphql.validation"));
 			}
 			return true;
+		}
+	}
+
+	static class SelfDescribingDecorator extends ContextDataFetcherDecorator implements SelfDescribingDataFetcher<Object> {
+
+		private final SelfDescribingDataFetcher<?> selfDescribingDataFetcher;
+
+		private SelfDescribingDecorator(
+				SelfDescribingDataFetcher<?> delegate, boolean subscription,
+				SubscriptionExceptionResolver subscriptionExceptionResolver) {
+			super(delegate, subscription, subscriptionExceptionResolver);
+			selfDescribingDataFetcher = delegate;
+		}
+
+		@Override
+		public boolean isBatchLoading() {
+			return this.selfDescribingDataFetcher.isBatchLoading();
+		}
+
+		@Override
+		public Map<String, ResolvableType> getArguments() {
+			return this.selfDescribingDataFetcher.getArguments();
+		}
+
+		@Override
+		public ResolvableType getReturnType() {
+			return this.selfDescribingDataFetcher.getReturnType();
+		}
+
+		@Override
+		public String getDescription() {
+			return this.selfDescribingDataFetcher.getDescription();
 		}
 	}
 

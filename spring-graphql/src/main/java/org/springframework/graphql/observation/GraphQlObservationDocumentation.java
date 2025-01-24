@@ -79,6 +79,19 @@ public enum GraphQlObservationDocumentation implements ObservationDocumentation 
 		public KeyName[] getLowCardinalityKeyNames() {
 			return DataFetcherLowCardinalityKeyNames.values();
 		}
+	},
+
+	DATA_LOADER {
+
+		@Override
+		public String getPrefix() {
+			return "graphql";
+		}
+
+		@Override
+		public Class<? extends ObservationConvention<? extends Observation.Context>> getDefaultConvention() {
+			return DefaultDataLoaderObservationConvention.class;
+		}
 	};
 
 	public enum ExecutionRequestLowCardinalityKeyNames implements KeyName {
@@ -162,6 +175,20 @@ public enum GraphQlObservationDocumentation implements ObservationDocumentation 
 				return "graphql.field.path";
 			}
 		}
+
+	}
+
+	public enum DataLoaderLowCardinalityKeyNames implements KeyName {
+
+		/**
+		 * Outcome of the GraphQL data fetching operation.
+		 */
+		OUTCOME {
+			@Override
+			public String asString() {
+				return "graphql.outcome";
+			}
+		},
 
 	}
 

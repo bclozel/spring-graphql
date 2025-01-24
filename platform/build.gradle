@@ -25,6 +25,7 @@ dependencies {
 
 	constraints {
 		api("com.graphql-java:graphql-java:${graphQlJavaVersion}")
+		api("com.graphql-java:java-dataloader:0.0.0-2025-01-22T16-14-17-610343f")
 		api("io.micrometer:context-propagation:1.1.2")
 
 		api("jakarta.annotation:jakarta.annotation-api:2.1.1")
